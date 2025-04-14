@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AI Tour Recommender Test</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 2rem; }
+    .tour { margin: 1rem 0; padding: 1rem; border: 1px solid #ddd; border-radius: 6px; }
+    .tour h3 { margin: 0 0 0.5rem; }
+    .loading { color: #555; font-style: italic; }
+  </style>
+</head>
+<body>
+
+  <h1>Test Tour Recommendation</h1>
+
+  <form id="recommendForm">
+    <p><strong>Interests:</strong></p>
+    <label><input type="checkbox" name="interests" value="adventure"> Adventure</label><br>
+    <label><input type="checkbox" name="interests" value="relaxation"> Relaxation</label><br>
+    <label><input type="checkbox" name="interests" value="culture"> Culture</label><br>
+    <label><input type="checkbox" name="interests" value="food"> Food</label><br><br>
+
+    <label><strong>Budget:</strong> <input type="number" name="budget" placeholder="e.g. 30000"></label><br><br>
+
+    <button type="submit">Get Recommendations</button>
+  </form>
+
+  <div id="output" style="margin-top: 2rem;"></div>
+
+  <script>
+    const form = document.getElementById('recommendForm');
+    const output = document.getElementById('output');
+
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+
+      output.innerHTML = '<p class="loading">Loading recommendations...</p>';
+
+      // Collect form data
+      const formData = new FormData(form);
+      const interests = formData.getAll('interests');
+      const budget = formData.get('budget');
+
+      try {
+        const res = await fetch('http://127.0.0.1:5000/recommend-tours', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ interests, budget })
+        });
+
+        const json = await res.json();
+
+        if (json.recommendations && json.recommendations.length > 0) {
+          output.innerHTML = `<h2>Recommended Tours (${json.count})</h2>`;
+          json.recommendations.forEach(tour => {
+            output.innerHTML += `
+              <div class="tour">
+                <h3>${tour.location}</h3>
+                <p><strong>Price:</strong> PHP ${parseFloat(tour.price).toLocaleString()}</p>
+                <p><strong>Packages:</strong> ${tour.packages}</p>
+                <p><strong>Score:</strong> ${tour.score}</p>
+              </div>
+            `;
+          });
+        } else {
+          output.innerHTML = '<p>No matching tours found.</p>';
+        }
+      } catch (err) {
+        output.innerHTML = `<p style="color:red;">Error: ${err.message}</p>`;
+      }
+    });
+  </script>
+
+</body>
+</html>
