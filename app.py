@@ -7,14 +7,6 @@ CORS(app)
 
 TOUR_API_URL = 'https://core2.easetravelandtours.com/api/fetch-tour'
 
-# Map keywords in interests to likely match descriptions
-TAG_MAP = {
-    "adventure": ["adventure", "island", "hopping", "snorkel", "kayak"],
-    "relaxation": ["relax", "beach", "spa", "resort"],
-    "culture": ["historical", "culture", "heritage", "museum", "church"],
-    "food": ["food", "culinary", "local dish", "restaurant"]
-}
-
 @app.route('/')
 def index():
     return jsonify({"message": "Tour recommender API is running."})
@@ -23,8 +15,8 @@ def index():
 def recommend():
     try:
         user_data = request.json
-        interests = [i.lower() for i in user_data.get('interests', [])]
         budget = float(user_data.get('budget', 999999))
+        selected_types = [t.lower() for t in user_data.get('tour_type', [])]
 
         api_response = requests.get(TOUR_API_URL)
         if not api_response.ok:
@@ -34,28 +26,31 @@ def recommend():
         recommended = []
 
         for tour in all_tours:
-            if tour['availability'].lower() != 'available':
+            if tour.get('availability', '').lower() != 'available':
+                continue
+
+            tour_type = tour.get('tour_type', '').lower()
+            if selected_types and tour_type not in selected_types:
                 continue
 
             price = float(tour.get('price', 0))
             if price > budget:
                 continue
 
+            # Optional: Add score (e.g., for discounts)
             score = 0
-            description = f"{tour.get('location', '')} {tour.get('packages', '')}".lower()
+            if tour.get('discounts'):
+                score += 1
 
-            for interest in interests:
-                keywords = TAG_MAP.get(interest, [interest])
-                if any(keyword in description for keyword in keywords):
-                    score += 1
-
-            if score > 0:
-                tour['score'] = score
-                recommended.append(tour)
+            tour['score'] = score
+            recommended.append(tour)
 
         recommended.sort(key=lambda x: x['score'], reverse=True)
 
-        return jsonify({"recommendations": recommended, "count": len(recommended)})
+        return jsonify({
+            "recommendations": recommended,
+            "count": len(recommended)
+        })
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
